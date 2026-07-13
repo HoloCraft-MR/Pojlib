@@ -19,12 +19,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import pojlib.util.json.ProjectInfo;
 
 //This class reads data from a game version json and downloads its contents.
 //This works for the base game as well as mod loaders
@@ -198,6 +201,42 @@ public class Installer {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public static void installVisor(Activity activity, MinecraftInstances.Instance instance) throws IOException {
+        if (!instance.versionName.equals("1.20.1")) {
+            throw new IOException("Visor QuestCraft only supports Minecraft 1.20.1");
+        }
+
+        File mods = new File(instance.gameDir, "mods");
+        mods.mkdirs();
+        File[] existing = mods.listFiles();
+        if (existing != null) {
+            for (File file : existing) {
+                String name = file.getName().toLowerCase();
+                if (name.contains("vivecraft") || name.equals("visor.jar")) {
+                    file.delete();
+                }
+            }
+        }
+
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "Visor.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/Visor.jar")
+        );
+
+        ArrayList<ProjectInfo> projects = new ArrayList<>();
+        if (instance.extProjects != null) {
+            projects.addAll(Arrays.asList(instance.extProjects));
+        }
+        projects.removeIf(project -> project.slug.equalsIgnoreCase("Vivecraft") || project.slug.equalsIgnoreCase("Visor"));
+
+        ProjectInfo visor = new ProjectInfo();
+        visor.slug = "Visor";
+        visor.version = "0.4.0-questcraft";
+        visor.download_link = "bundled://visor";
+        projects.add(visor);
+        instance.extProjects = projects.toArray(new ProjectInfo[0]);
     }
 
     public static class AsyncDownload implements Runnable {

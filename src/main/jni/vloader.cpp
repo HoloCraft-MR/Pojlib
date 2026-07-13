@@ -2,6 +2,7 @@
 // Created by Judge on 12/23/2021.
 //
 #include <thread>
+#include <chrono>
 #include <string>
 #include <errno.h>
 #include <android/hardware_buffer.h>
@@ -70,6 +71,46 @@ Java_org_vivecraft_util_VLoader_setupAndroid(JNIEnv* env, jclass clazz) {
     jclass apiClass = pojav_environ->apiClass;
     jfieldID fieldID = newEnv->GetStaticFieldID(apiClass, "gameReady", "Z");
     newEnv->SetStaticBooleanField(apiClass, fieldID, true);
+    jfieldID stoppedFieldID = newEnv->GetStaticFieldID(apiClass, "launcherXRStopped", "Z");
+    for (int i = 0; i < 1000 && !newEnv->GetStaticBooleanField(apiClass, stoppedFieldID); i++) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_org_vmstudio_visor_core_client_provider_openxr_QuestVLoader_getEGLDisplay(JNIEnv* env, jclass clazz) {
+    return Java_org_vivecraft_util_VLoader_getEGLDisplay(env, clazz);
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_org_vmstudio_visor_core_client_provider_openxr_QuestVLoader_getEGLContext(JNIEnv* env, jclass clazz) {
+    return Java_org_vivecraft_util_VLoader_getEGLContext(env, clazz);
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_org_vmstudio_visor_core_client_provider_openxr_QuestVLoader_getEGLConfig(JNIEnv* env, jclass clazz) {
+    return Java_org_vivecraft_util_VLoader_getEGLConfig(env, clazz);
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_org_vmstudio_visor_core_client_provider_openxr_QuestVLoader_getDalvikVM(JNIEnv* env, jclass clazz) {
+    return Java_org_vivecraft_util_VLoader_getDalvikVM(env, clazz);
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_org_vmstudio_visor_core_client_provider_openxr_QuestVLoader_getDalvikActivity(JNIEnv* env, jclass clazz) {
+    return Java_org_vivecraft_util_VLoader_getDalvikActivity(env, clazz);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_org_vmstudio_visor_core_client_provider_openxr_QuestVLoader_setupAndroid(JNIEnv* env, jclass clazz) {
+    Java_org_vivecraft_util_VLoader_setupAndroid(env, clazz);
 }
 
 extern "C"
