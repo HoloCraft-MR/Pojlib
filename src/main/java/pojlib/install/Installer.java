@@ -214,7 +214,7 @@ public class Installer {
         if (existing != null) {
             for (File file : existing) {
                 String name = file.getName().toLowerCase();
-                if (name.contains("vivecraft") || name.equals("visor.jar")) {
+                if (name.contains("vivecraft") || name.equals("visor.jar") || name.equals("visoressentials.jar")) {
                     file.delete();
                 }
             }
@@ -224,18 +224,28 @@ public class Installer {
                 new File(mods, "Visor.jar"),
                 FileUtil.loadFromAssetToByte(activity, "mods/Visor.jar")
         );
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "VisorEssentials.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/VisorEssentials.jar")
+        );
 
         ArrayList<ProjectInfo> projects = new ArrayList<>();
         if (instance.extProjects != null) {
             projects.addAll(Arrays.asList(instance.extProjects));
         }
-        projects.removeIf(project -> project.slug.equalsIgnoreCase("Vivecraft") || project.slug.equalsIgnoreCase("Visor"));
+        projects.removeIf(project -> project.slug.equalsIgnoreCase("Vivecraft") || project.slug.equalsIgnoreCase("Visor") || project.slug.equalsIgnoreCase("VisorEssentials"));
 
         ProjectInfo visor = new ProjectInfo();
         visor.slug = "Visor";
-        visor.version = "0.4.0-questcraft";
+        visor.version = "0.4.0+questcraft";
         visor.download_link = "bundled://visor";
         projects.add(visor);
+
+        ProjectInfo essentials = new ProjectInfo();
+        essentials.slug = "VisorEssentials";
+        essentials.version = "0.4.0";
+        essentials.download_link = "bundled://visor-essentials";
+        projects.add(essentials);
         instance.extProjects = projects.toArray(new ProjectInfo[0]);
     }
 

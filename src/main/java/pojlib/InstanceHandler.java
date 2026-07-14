@@ -259,7 +259,7 @@ public class InstanceHandler {
     }
 
     private static boolean isCoreMod(MinecraftInstances.Instance instance, ProjectInfo oldInfo) {
-        if(oldInfo.slug.equalsIgnoreCase("Visor")) {
+        if(oldInfo.slug.equalsIgnoreCase("Visor") || oldInfo.slug.equalsIgnoreCase("VisorEssentials")) {
             return true;
         }
         // Check if its a coremod
