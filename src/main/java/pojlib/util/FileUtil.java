@@ -71,30 +71,33 @@ public class FileUtil {
 
     public static void unzipArchive(String archivePath, String extractPath) {
         try {
-            try(ZipFile zipFile = new ZipFile(archivePath)) {
-                byte[] buf = new byte[1024];
-                Enumeration<? extends ZipEntry> entries = zipFile.entries();
-                while(entries.hasMoreElements()) {
-                    ZipEntry entry = entries.nextElement();
-                    if(entry.isDirectory()) {
-                        continue;
-                    }
-
-                    File newFile = newFile(new File(extractPath), entry);
-                    newFile.getParentFile().mkdirs();
-
-                    FileOutputStream fos = new FileOutputStream(newFile);
-                    InputStream input = zipFile.getInputStream(entry);
-                    int len;
-                    while ((len = input.read(buf)) > 0) {
-                        fos.write(buf, 0, len);
-                        fos.flush();
-                    }
-                    fos.close();
-                }
-            }
+            unzipArchiveChecked(archivePath, extractPath);
         } catch (IOException e) {
             Logger.getInstance().appendToLog(e.getMessage());
+        }
+    }
+
+    public static void unzipArchiveChecked(String archivePath, String extractPath) throws IOException {
+        try(ZipFile zipFile = new ZipFile(archivePath)) {
+            byte[] buf = new byte[8192];
+            Enumeration<? extends ZipEntry> entries = zipFile.entries();
+            while(entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                if(entry.isDirectory()) {
+                    continue;
+                }
+
+                File newFile = newFile(new File(extractPath), entry);
+                ensureParentDirectory(newFile);
+
+                try(InputStream input = zipFile.getInputStream(entry);
+                    OutputStream output = new BufferedOutputStream(new FileOutputStream(newFile))) {
+                    int len;
+                    while ((len = input.read(buf)) > 0) {
+                        output.write(buf, 0, len);
+                    }
+                }
+            }
         }
     }
 
