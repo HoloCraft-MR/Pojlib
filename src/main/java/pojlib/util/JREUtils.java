@@ -23,6 +23,7 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -210,16 +211,21 @@ public class JREUtils {
             ActivityManager.MemoryInfo ami = new ActivityManager.MemoryInfo();
             manager.getMemoryInfo(ami);
             long availMem = (ami.availMem-ami.threshold)/(1024*1024);
-            availMem *= 0.8; // Lossy, but should work...
-            long allocatedRam = Math.max(availMem, 1536);
+            availMem *= 0.8;
+            String deviceModel = (Build.MODEL + " " + API.model).toLowerCase(Locale.ROOT);
+            boolean quest2 = deviceModel.contains("quest 2")
+                    || deviceModel.contains("quest2")
+                    || ami.totalMem < 7L * 1024 * 1024 * 1024;
+            long heapCap = quest2 ? 1792 : 2560;
+            long allocatedRam = Math.max(1536, Math.min(availMem, heapCap));
 
-            Logger.getInstance().appendToLog("QuestCraft: Setting JVM memory to " + allocatedRam + "MB");
+            Logger.getInstance().appendToLog("QuestCraft: Setting JVM memory to " + allocatedRam
+                    + "MB (automatic cap " + heapCap + "MB for " + Build.MODEL + ")");
 
 
             userArgs.add("-Xms" + 1024 + "M");
             userArgs.add("-Xmx" + allocatedRam + "M");
         }
-
 
         // Garbage collection
         userArgs.add("-XX:+UseZGC");

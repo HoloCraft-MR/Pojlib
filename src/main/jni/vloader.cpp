@@ -15,6 +15,7 @@
 #include <GLES3/gl32.h>
 #include <EGL/egl.h>
 #include <openxr/openxr.h>
+#include <sys/system_properties.h>
 #include "log.h"
 
 extern "C"
@@ -111,6 +112,14 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_org_vmstudio_visor_core_client_provider_openxr_QuestVLoader_setupAndroid(JNIEnv* env, jclass clazz) {
     Java_org_vivecraft_util_VLoader_setupAndroid(env, clazz);
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_org_vmstudio_visor_core_client_provider_openxr_QuestVLoader_getDeviceModel(JNIEnv* env, jclass clazz) {
+    char model[PROP_VALUE_MAX] = {};
+    __system_property_get("ro.product.model", model);
+    return env->NewStringUTF(model);
 }
 
 extern "C"

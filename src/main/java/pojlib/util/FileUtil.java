@@ -37,9 +37,42 @@ public class FileUtil {
         return buffer;
     }
 
-    public static boolean matchingAssetFile(File sourceFile, byte[] assetFile) throws IOException {
-        byte[] sf = Files.readAllBytes(sourceFile.toPath());
-        return sf == assetFile;
+    public static boolean matchingAssetFile(Context ctx, String assetPath, File sourceFile) throws IOException {
+        if (!sourceFile.isFile()) {
+            return false;
+        }
+        try (InputStream asset = new BufferedInputStream(ctx.getAssets().open(assetPath));
+             InputStream file = new BufferedInputStream(Files.newInputStream(sourceFile.toPath()))) {
+            byte[] assetBuffer = new byte[8192];
+            byte[] fileBuffer = new byte[8192];
+            while (true) {
+                int assetLength = asset.read(assetBuffer);
+                int fileLength = file.read(fileBuffer);
+                if (assetLength != fileLength) {
+                    return false;
+                }
+                if (assetLength == -1) {
+                    return true;
+                }
+                for (int i = 0; i < assetLength; i++) {
+                    if (assetBuffer[i] != fileBuffer[i]) {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    public static void copyAssetToFile(Context ctx, String assetPath, File target) throws IOException {
+        ensureParentDirectory(target);
+        try (InputStream input = new BufferedInputStream(ctx.getAssets().open(assetPath));
+             OutputStream output = new BufferedOutputStream(Files.newOutputStream(target.toPath()))) {
+            byte[] buffer = new byte[8192];
+            int length;
+            while ((length = input.read(buffer)) != -1) {
+                output.write(buffer, 0, length);
+            }
+        }
     }
 
     public static String read(String path) throws IOException {

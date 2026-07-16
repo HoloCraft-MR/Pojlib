@@ -42,7 +42,7 @@ public class API {
     public static String profileImage;
     public static String profileName;
     public static String profileUUID;
-    public static String memoryValue = "1800";
+    public static String memoryValue = "2560";
     public static boolean developerMods;
     public static MinecraftAccount currentAcc;
     public static boolean isDemoMode;

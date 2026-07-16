@@ -16,12 +16,14 @@ import pojlib.util.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -33,6 +35,9 @@ import pojlib.util.json.ProjectInfo;
 //This class reads data from a game version json and downloads its contents.
 //This works for the base game as well as mod loaders
 public class Installer {
+
+    private static final String IMMEDIATELY_FAST_URL = "https://cdn.modrinth.com/data/5ZwdcRci/versions/iwYUrQJO/ImmediatelyFast-Fabric-1.5.5%2B1.20.4.jar";
+    private static final String IMMEDIATELY_FAST_SHA1 = "9f0110b60dc752ca093f2fc10a72d221b6dc8ac3";
 
     private static final String[] REQUIRED_JRE_FILES = {
             "bin/java",
@@ -263,13 +268,23 @@ public class Installer {
             throw new IOException("Visor QuestCraft only supports Minecraft 1.20.1");
         }
 
+        applyQuestDefaults(instance);
         File mods = new File(instance.gameDir, "mods");
         mods.mkdirs();
+        installImmediatelyFast(mods);
         File[] existing = mods.listFiles();
         if (existing != null) {
             for (File file : existing) {
                 String name = file.getName().toLowerCase();
-                if (name.contains("vivecraft") || name.equals("visor.jar") || name.equals("visoressentials.jar")) {
+                if (name.contains("vivecraft")
+                        || name.equals("visor.jar")
+                        || name.equals("visoressentials.jar")
+                        || name.contains("moreculling")
+                        || name.contains("noisium")
+                        || name.contains("badoptimizations")
+                        || name.contains("chunky")
+                        || name.contains("c2me")
+                        || name.contains("voxy")) {
                     file.delete();
                 }
             }
@@ -283,12 +298,39 @@ public class Installer {
                 new File(mods, "VisorEssentials.jar"),
                 FileUtil.loadFromAssetToByte(activity, "mods/VisorEssentials.jar")
         );
-
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "MoreCulling.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/MoreCulling.jar")
+        );
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "Noisium.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/Noisium.jar")
+        );
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "BadOptimizations.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/BadOptimizations.jar")
+        );
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "Chunky.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/Chunky.jar")
+        );
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "C2ME.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/C2ME.jar")
+        );
         ArrayList<ProjectInfo> projects = new ArrayList<>();
         if (instance.extProjects != null) {
             projects.addAll(Arrays.asList(instance.extProjects));
         }
-        projects.removeIf(project -> project.slug.equalsIgnoreCase("Vivecraft") || project.slug.equalsIgnoreCase("Visor") || project.slug.equalsIgnoreCase("VisorEssentials"));
+        projects.removeIf(project -> project.slug.equalsIgnoreCase("Vivecraft")
+                || project.slug.equalsIgnoreCase("Visor")
+                || project.slug.equalsIgnoreCase("VisorEssentials")
+                || project.slug.equalsIgnoreCase("MoreCulling")
+                || project.slug.equalsIgnoreCase("Noisium")
+                || project.slug.equalsIgnoreCase("BadOptimizations")
+                || project.slug.equalsIgnoreCase("Chunky")
+                || project.slug.equalsIgnoreCase("C2ME")
+                || project.slug.equalsIgnoreCase("Voxy"));
 
         ProjectInfo visor = new ProjectInfo();
         visor.slug = "Visor";
@@ -301,7 +343,84 @@ public class Installer {
         essentials.version = "0.4.0";
         essentials.download_link = "bundled://visor-essentials";
         projects.add(essentials);
+
+        ProjectInfo moreCulling = new ProjectInfo();
+        moreCulling.slug = "MoreCulling";
+        moreCulling.version = "1.20.1-0.24.5";
+        moreCulling.download_link = "bundled://more-culling";
+        moreCulling.type = "mod";
+        projects.add(moreCulling);
+
+        ProjectInfo noisium = new ProjectInfo();
+        noisium.slug = "Noisium";
+        noisium.version = "2.3.0+mc1.20-1.20.1";
+        noisium.download_link = "bundled://noisium";
+        noisium.type = "mod";
+        projects.add(noisium);
+
+        ProjectInfo badOptimizations = new ProjectInfo();
+        badOptimizations.slug = "BadOptimizations";
+        badOptimizations.version = "2.4.1";
+        badOptimizations.download_link = "bundled://bad-optimizations";
+        badOptimizations.type = "mod";
+        projects.add(badOptimizations);
+
+        ProjectInfo chunky = new ProjectInfo();
+        chunky.slug = "Chunky";
+        chunky.version = "1.3.146";
+        chunky.download_link = "bundled://chunky";
+        chunky.type = "mod";
+        projects.add(chunky);
+
+        ProjectInfo c2me = new ProjectInfo();
+        c2me.slug = "C2ME";
+        c2me.version = "0.2.0+alpha.11.18+1.20.1";
+        c2me.download_link = "bundled://c2me";
+        c2me.type = "mod";
+        projects.add(c2me);
+
         instance.extProjects = projects.toArray(new ProjectInfo[0]);
+    }
+
+    private static void applyQuestDefaults(MinecraftInstances.Instance instance) throws IOException {
+        File marker = new File(instance.gameDir, ".qcx-render-distance-4");
+        if (marker.isFile()) {
+            return;
+        }
+
+        File options = new File(instance.gameDir, "options.txt");
+        if (options.isFile()) {
+            List<String> lines = Files.readAllLines(options.toPath(), StandardCharsets.UTF_8);
+            for (int i = 0; i < lines.size(); i++) {
+                String line = lines.get(i);
+                if (line.startsWith("renderDistance:")) {
+                    lines.set(i, "renderDistance:4");
+                } else if (line.startsWith("simulationDistance:")) {
+                    lines.set(i, "simulationDistance:4");
+                }
+            }
+            Files.write(options.toPath(), lines, StandardCharsets.UTF_8);
+        }
+        marker.createNewFile();
+    }
+
+    private static void installImmediatelyFast(File mods) throws IOException {
+        File target = new File(mods, "ImmediatelyFast.jar");
+        if (target.isFile() && DownloadUtils.compareSHA1(target, IMMEDIATELY_FAST_SHA1)) {
+            return;
+        }
+
+        File update = new File(mods, "ImmediatelyFast.jar.update");
+        FileUtils.deleteQuietly(update);
+        try {
+            DownloadUtils.downloadFile(IMMEDIATELY_FAST_URL, update, 348818);
+            if (!DownloadUtils.compareSHA1(update, IMMEDIATELY_FAST_SHA1)) {
+                throw new IOException("ImmediatelyFast download hash mismatch");
+            }
+            Files.move(update.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            FileUtils.deleteQuietly(update);
+        }
     }
 
     public static class AsyncDownload implements Runnable {
