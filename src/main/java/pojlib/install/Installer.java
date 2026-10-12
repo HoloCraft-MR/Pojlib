@@ -334,7 +334,7 @@ public class Installer {
 
         ProjectInfo visor = new ProjectInfo();
         visor.slug = "Visor";
-        visor.version = "0.4.0+questcraft";
+        visor.version = "0.6.0-beta";
         visor.download_link = "bundled://visor";
         projects.add(visor);
 
