@@ -259,6 +259,9 @@ public class InstanceHandler {
     }
 
     private static boolean isCoreMod(MinecraftInstances.Instance instance, ProjectInfo oldInfo) {
+        if(oldInfo.slug.equalsIgnoreCase("Visor") || oldInfo.slug.equalsIgnoreCase("VisorEssentials")) {
+            return true;
+        }
         // Check if its a coremod
         ModsJson oldMods = instance.parseModsJson(Constants.USER_HOME + "/mods.json");
         if(oldMods != null) {
@@ -341,6 +344,7 @@ public class InstanceHandler {
             JREUtils.launchJavaVM(activity, instance.generateLaunchArgs(account), instance);
         } catch (Throwable e) {
             e.printStackTrace();
+            Logger.getInstance().appendToLog("Instance launch failed: " + e);
         }
     }
 }

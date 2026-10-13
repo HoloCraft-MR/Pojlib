@@ -315,8 +315,8 @@
         },
         {
           "slug": "ImmediatelyFast",
-          "version": "1.5.3+1.20.4-fabric",
-          "download_link": "https://cdn.modrinth.com/data/5ZwdcRci/versions/AIFWhP2u/ImmediatelyFast-Fabric-1.5.3%2B1.20.4.jar"
+          "version": "1.5.5+1.20.4-fabric",
+          "download_link": "https://cdn.modrinth.com/data/5ZwdcRci/versions/iwYUrQJO/ImmediatelyFast-Fabric-1.5.5%2B1.20.4.jar"
         },
         {
           "slug": "Simple-Voice-Chat",
@@ -381,6 +381,11 @@
           "download_link": "https://cdn.modrinth.com/data/uXXizFIs/versions/unerR5MN/ferritecore-6.0.1-fabric.jar"
         },
         {
+          "slug": "MoreCulling",
+          "version": "1.20.1-0.24.5",
+          "download_link": "https://cdn.modrinth.com/data/51shyZVL/versions/3wkuUDPy/moreculling-1.20.1-0.24.5.jar"
+        },
+        {
           "slug": "Sodium",
           "version": "mc1.20.1-0.5.13-fabric",
           "download_link": "https://cdn.modrinth.com/data/AANobbMI/versions/OihdIimA/sodium-fabric-0.5.13%2Bmc1.20.1.jar"
@@ -397,8 +402,8 @@
         },
         {
           "slug": "ImmediatelyFast",
-          "version": "1.5.3+1.20.4-fabric",
-          "download_link": "https://cdn.modrinth.com/data/5ZwdcRci/versions/AIFWhP2u/ImmediatelyFast-Fabric-1.5.3%2B1.20.4.jar"
+          "version": "1.5.5+1.20.4-fabric",
+          "download_link": "https://cdn.modrinth.com/data/5ZwdcRci/versions/iwYUrQJO/ImmediatelyFast-Fabric-1.5.5%2B1.20.4.jar"
         },
         {
           "slug": "Simple-Voice-Chat",
@@ -409,6 +414,26 @@
           "slug": "ModernFix",
           "version": "5.24.0",
           "download_link": "https://github.com/embeddedt/ModernFix/releases/download/5.24.0%2B1.20.1/modernfix-fabric-5.24.0+mc1.20.1.jar"
+        },
+        {
+          "slug": "Noisium",
+          "version": "2.3.0+mc1.20-1.20.1",
+          "download_link": "https://cdn.modrinth.com/data/KuNKN7d2/versions/erSJnRcq/noisium-fabric-2.3.0%2Bmc1.20-1.20.1.jar"
+        },
+        {
+          "slug": "BadOptimizations",
+          "version": "2.4.1",
+          "download_link": "https://cdn.modrinth.com/data/g96Z4WVZ/versions/DIugITgU/BadOptimizations-2.4.1-1.20.1.jar"
+        },
+        {
+          "slug": "Chunky",
+          "version": "1.3.146",
+          "download_link": "https://cdn.modrinth.com/data/fALzjamp/versions/NHWYq9at/Chunky-1.3.146.jar"
+        },
+        {
+          "slug": "C2ME",
+          "version": "0.2.0+alpha.11.18+1.20.1",
+          "download_link": "https://cdn.modrinth.com/data/VSNURh3q/versions/fyt7FtgA/c2me-fabric-mc1.20.1-0.2.0%2Balpha.11.18.jar"
         }
       ]
     },

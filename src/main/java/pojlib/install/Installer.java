@@ -16,41 +16,100 @@ import pojlib.util.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import pojlib.util.json.ProjectInfo;
 
 //This class reads data from a game version json and downloads its contents.
 //This works for the base game as well as mod loaders
 public class Installer {
 
-    public static void installJVM(Activity activity) {
+    private static final String IMMEDIATELY_FAST_URL = "https://cdn.modrinth.com/data/5ZwdcRci/versions/iwYUrQJO/ImmediatelyFast-Fabric-1.5.5%2B1.20.4.jar";
+    private static final String IMMEDIATELY_FAST_SHA1 = "9f0110b60dc752ca093f2fc10a72d221b6dc8ac3";
+
+    private static final String[] REQUIRED_JRE_FILES = {
+            "bin/java",
+            "release",
+            "lib/libjli.so",
+            "lib/libjava.so",
+            "lib/libverify.so",
+            "lib/libnet.so",
+            "lib/libnio.so",
+            "lib/libawt.so",
+            "lib/libawt_headless.so",
+            "lib/libfreetype.so",
+            "lib/libfontmanager.so",
+            "lib/server/libjvm.so"
+    };
+
+    public static synchronized void installJVM(Activity activity) throws IOException {
         Logger.getInstance().appendToLog("Checking JRE");
-        File jre = new File(activity.getFilesDir(), "runtimes/JRE");
+        File runtimes = new File(activity.getFilesDir(), "runtimes");
+        File jre = new File(runtimes, "JRE");
+        File installing = new File(runtimes, "JRE.installing");
+        File jreZip = new File(runtimes, "JRE.zip.download");
         String jreURL = "https://github.com/QuestCraftPlusPlus/android-openjdk-build-multiarch/releases/latest/download/JRE.zip";
 
+        if (isJreValid(jre)) {
+            Logger.getInstance().appendToLog("JRE installed");
+            return;
+        }
+
+        Logger.getInstance().appendToLog(jre.exists() ? "JRE incomplete, reinstalling" : "Installing JRE");
+        FileUtils.forceMkdir(runtimes);
+        FileUtils.deleteQuietly(installing);
+        FileUtils.deleteQuietly(jreZip);
+
         try {
-            if (!jre.exists()) {
-                Logger.getInstance().appendToLog("Installing JRE");
-                File jreZip = new File(activity.getFilesDir() + "/runtimes/JRE.zip");
-                DownloadUtils.downloadFile(jreURL, jreZip);
-                DownloadManager.reset();
-                FileUtil.unzipArchive(jreZip.getPath(), activity.getFilesDir() + "/runtimes/JRE");
-                Files.copy(Paths.get(activity.getApplicationInfo().nativeLibraryDir + "/libawt_xawt.so"), Paths.get(activity.getFilesDir() + "/runtimes/JRE/lib/libawt_xawt.so"));
-                jreZip.delete();
+            DownloadUtils.downloadFile(jreURL, jreZip);
+            DownloadManager.reset();
+            FileUtil.unzipArchiveChecked(jreZip.getPath(), installing.getPath());
+            Files.copy(
+                    Paths.get(activity.getApplicationInfo().nativeLibraryDir, "libawt_xawt.so"),
+                    Paths.get(installing.getPath(), "lib", "libawt_xawt.so"),
+                    StandardCopyOption.REPLACE_EXISTING
+            );
+
+            if (!isJreValid(installing)) {
+                throw new IOException("Downloaded JRE is incomplete");
             }
 
+            FileUtils.deleteQuietly(jre);
+            Files.move(installing.toPath(), jre.toPath(), StandardCopyOption.REPLACE_EXISTING);
             Logger.getInstance().appendToLog("JRE installed");
         } catch (IOException e) {
             Logger.getInstance().appendToLog("Failed to install JRE: " + e.getMessage());
-            e.printStackTrace();
+            throw e;
+        } finally {
+            FileUtils.deleteQuietly(installing);
+            FileUtils.deleteQuietly(jreZip);
+            DownloadManager.reset();
         }
+    }
+
+    private static boolean isJreValid(File jre) {
+        if (!jre.isDirectory()) {
+            return false;
+        }
+        for (String path : REQUIRED_JRE_FILES) {
+            File file = new File(jre, path);
+            if (!file.isFile() || file.length() == 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     // Will only download client if it is missing, however it will overwrite if sha1 does not match the downloaded client
@@ -184,19 +243,183 @@ public class Installer {
     }
 
     public static void moveLocalAssets(Activity activity, MinecraftInstances.Instance instance) throws IOException {
+        File config = new File(instance.gameDir, "config");
+        FileUtil.ensureDirectory(config);
+        FileUtils.writeByteArrayToFile(new File(config, "sodium-options.json"), FileUtil.loadFromAssetToByte(activity, "sodium-options.json"));
+        FileUtils.writeByteArrayToFile(new File(config, "smoothboot.json"), FileUtil.loadFromAssetToByte(activity, "smoothboot.json"));
+        FileUtils.writeByteArrayToFile(new File(config, "immediatelyfast.json"), FileUtil.loadFromAssetToByte(activity, "immediatelyfast.json"));
+        FileUtils.writeByteArrayToFile(new File(config, "moreculling.toml"), FileUtil.loadFromAssetToByte(activity,"moreculling.toml"));
+        FileUtils.writeByteArrayToFile(new File(config, "modernfix-mixins.properties"), FileUtil.loadFromAssetToByte(activity,"modernfix-mixins.properties"));
+        FileUtils.writeByteArrayToFile(new File(instance.gameDir, "options.txt"), FileUtil.loadFromAssetToByte(activity, "options.txt"));
+        FileUtils.writeByteArrayToFile(new File(instance.gameDir, "servers.dat"), FileUtil.loadFromAssetToByte(activity, "servers.dat"));
+        FileUtils.writeByteArrayToFile(new File(config, "vivecraft-client-config.json"), FileUtil.loadFromAssetToByte(activity, "vivecraft-client-config.json"));
+        installLauncherAssets(activity);
+    }
+
+    public static void installLauncherAssets(Activity activity) throws IOException {
+        File hacks = new File(Constants.USER_HOME, "hacks");
+        FileUtil.ensureDirectory(hacks);
+        FileUtils.writeByteArrayToFile(new File(hacks, "ResConfHack.jar"), FileUtil.loadFromAssetToByte(activity, "hacks/ResConfHack.jar"));
+        FileUtils.writeByteArrayToFile(new File(hacks, "resolv.conf"), FileUtil.loadFromAssetToByte(activity, "hacks/resolv.conf"));
+    }
+
+    public static void installVisor(Activity activity, MinecraftInstances.Instance instance) throws IOException {
+        if (!instance.versionName.equals("1.20.1")) {
+            throw new IOException("Visor QuestCraft only supports Minecraft 1.20.1");
+        }
+
+        applyQuestDefaults(instance);
+        File mods = new File(instance.gameDir, "mods");
+        mods.mkdirs();
+        installImmediatelyFast(mods);
+        File[] existing = mods.listFiles();
+        if (existing != null) {
+            for (File file : existing) {
+                String name = file.getName().toLowerCase();
+                if (name.contains("vivecraft")
+                        || name.equals("visor.jar")
+                        || name.equals("visoressentials.jar")
+                        || name.contains("moreculling")
+                        || name.contains("noisium")
+                        || name.contains("badoptimizations")
+                        || name.contains("chunky")
+                        || name.contains("c2me")
+                        || name.contains("voxy")) {
+                    file.delete();
+                }
+            }
+        }
+
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "Visor.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/Visor.jar")
+        );
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "VisorEssentials.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/VisorEssentials.jar")
+        );
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "MoreCulling.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/MoreCulling.jar")
+        );
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "Noisium.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/Noisium.jar")
+        );
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "BadOptimizations.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/BadOptimizations.jar")
+        );
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "Chunky.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/Chunky.jar")
+        );
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "C2ME.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/C2ME.jar")
+        );
+        ArrayList<ProjectInfo> projects = new ArrayList<>();
+        if (instance.extProjects != null) {
+            projects.addAll(Arrays.asList(instance.extProjects));
+        }
+        projects.removeIf(project -> project.slug.equalsIgnoreCase("Vivecraft")
+                || project.slug.equalsIgnoreCase("Visor")
+                || project.slug.equalsIgnoreCase("VisorEssentials")
+                || project.slug.equalsIgnoreCase("MoreCulling")
+                || project.slug.equalsIgnoreCase("Noisium")
+                || project.slug.equalsIgnoreCase("BadOptimizations")
+                || project.slug.equalsIgnoreCase("Chunky")
+                || project.slug.equalsIgnoreCase("C2ME")
+                || project.slug.equalsIgnoreCase("Voxy"));
+
+        ProjectInfo visor = new ProjectInfo();
+        visor.slug = "Visor";
+        visor.version = "0.6.0-beta";
+        visor.download_link = "bundled://visor";
+        projects.add(visor);
+
+        ProjectInfo essentials = new ProjectInfo();
+        essentials.slug = "VisorEssentials";
+        essentials.version = "0.4.0";
+        essentials.download_link = "bundled://visor-essentials";
+        projects.add(essentials);
+
+        ProjectInfo moreCulling = new ProjectInfo();
+        moreCulling.slug = "MoreCulling";
+        moreCulling.version = "1.20.1-0.24.5";
+        moreCulling.download_link = "bundled://more-culling";
+        moreCulling.type = "mod";
+        projects.add(moreCulling);
+
+        ProjectInfo noisium = new ProjectInfo();
+        noisium.slug = "Noisium";
+        noisium.version = "2.3.0+mc1.20-1.20.1";
+        noisium.download_link = "bundled://noisium";
+        noisium.type = "mod";
+        projects.add(noisium);
+
+        ProjectInfo badOptimizations = new ProjectInfo();
+        badOptimizations.slug = "BadOptimizations";
+        badOptimizations.version = "2.4.1";
+        badOptimizations.download_link = "bundled://bad-optimizations";
+        badOptimizations.type = "mod";
+        projects.add(badOptimizations);
+
+        ProjectInfo chunky = new ProjectInfo();
+        chunky.slug = "Chunky";
+        chunky.version = "1.3.146";
+        chunky.download_link = "bundled://chunky";
+        chunky.type = "mod";
+        projects.add(chunky);
+
+        ProjectInfo c2me = new ProjectInfo();
+        c2me.slug = "C2ME";
+        c2me.version = "0.2.0+alpha.11.18+1.20.1";
+        c2me.download_link = "bundled://c2me";
+        c2me.type = "mod";
+        projects.add(c2me);
+
+        instance.extProjects = projects.toArray(new ProjectInfo[0]);
+    }
+
+    private static void applyQuestDefaults(MinecraftInstances.Instance instance) throws IOException {
+        File marker = new File(instance.gameDir, ".qcx-render-distance-4");
+        if (marker.isFile()) {
+            return;
+        }
+
+        File options = new File(instance.gameDir, "options.txt");
+        if (options.isFile()) {
+            List<String> lines = Files.readAllLines(options.toPath(), StandardCharsets.UTF_8);
+            for (int i = 0; i < lines.size(); i++) {
+                String line = lines.get(i);
+                if (line.startsWith("renderDistance:")) {
+                    lines.set(i, "renderDistance:4");
+                } else if (line.startsWith("simulationDistance:")) {
+                    lines.set(i, "simulationDistance:4");
+                }
+            }
+            Files.write(options.toPath(), lines, StandardCharsets.UTF_8);
+        }
+        marker.createNewFile();
+    }
+
+    private static void installImmediatelyFast(File mods) throws IOException {
+        File target = new File(mods, "ImmediatelyFast.jar");
+        if (target.isFile() && DownloadUtils.compareSHA1(target, IMMEDIATELY_FAST_SHA1)) {
+            return;
+        }
+
+        File update = new File(mods, "ImmediatelyFast.jar.update");
+        FileUtils.deleteQuietly(update);
         try {
-            FileUtils.writeByteArrayToFile(new File(instance.gameDir + "/config/sodium-options.json"), FileUtil.loadFromAssetToByte(activity, "sodium-options.json"));
-            FileUtils.writeByteArrayToFile(new File(instance.gameDir + "/config/smoothboot.json"), FileUtil.loadFromAssetToByte(activity, "smoothboot.json"));
-            FileUtils.writeByteArrayToFile(new File(instance.gameDir + "/config/immediatelyfast.json"), FileUtil.loadFromAssetToByte(activity, "immediatelyfast.json"));
-            FileUtils.writeByteArrayToFile(new File(instance.gameDir + "/config/moreculling.toml"), FileUtil.loadFromAssetToByte(activity,"moreculling.toml"));
-            FileUtils.writeByteArrayToFile(new File(instance.gameDir + "/config/modernfix-mixins.properties"), FileUtil.loadFromAssetToByte(activity,"modernfix-mixins.properties"));
-            FileUtils.writeByteArrayToFile(new File(instance.gameDir + "/options.txt"), FileUtil.loadFromAssetToByte(activity, "options.txt"));
-            FileUtils.writeByteArrayToFile(new File(instance.gameDir + "/servers.dat"), FileUtil.loadFromAssetToByte(activity, "servers.dat"));
-            FileUtils.writeByteArrayToFile(new File(instance.gameDir + "/config/vivecraft-client-config.json"), FileUtil.loadFromAssetToByte(activity, "vivecraft-client-config.json"));
-            FileUtils.writeByteArrayToFile(new File(Constants.USER_HOME + "/hacks/ResConfHack.jar"), FileUtil.loadFromAssetToByte(activity, "hacks/ResConfHack.jar"));
-            FileUtils.writeByteArrayToFile(new File(Constants.USER_HOME + "/hacks/resolv.conf"), FileUtil.loadFromAssetToByte(activity, "hacks/resolv.conf"));
-        } catch (IOException e) {
-            e.printStackTrace();
+            DownloadUtils.downloadFile(IMMEDIATELY_FAST_URL, update, 348818);
+            if (!DownloadUtils.compareSHA1(update, IMMEDIATELY_FAST_SHA1)) {
+                throw new IOException("ImmediatelyFast download hash mismatch");
+            }
+            Files.move(update.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            FileUtils.deleteQuietly(update);
         }
     }
 

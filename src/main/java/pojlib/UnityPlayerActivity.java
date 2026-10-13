@@ -7,7 +7,6 @@ import static org.lwjgl.glfw.CallbackBridge.sendMouseButton;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.Activity;
 import android.app.ActivityGroup;
 import android.app.ActivityManager;
 import android.content.ClipData;
@@ -20,15 +19,16 @@ import android.os.Bundle;
 import android.os.Process;
 import android.util.DisplayMetrics;
 import android.view.InputDevice;
-import android.util.DisplayMetrics;
-import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.Window;
 import android.view.WindowManager;
 
+import com.unity3d.player.IUnityPermissionRequestSupport;
 import com.unity3d.player.IUnityPlayerLifecycleEvents;
-import com.unity3d.player.UnityPlayer;
+import com.unity3d.player.IUnityPlayerSupport;
+import com.unity3d.player.PermissionRequest;
+import com.unity3d.player.UnityPlayerForActivityOrService;
 
 import org.lwjgl.glfw.CallbackBridge;
 
@@ -36,7 +36,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Objects;
 
 import fr.spse.gamepad_remapper.RemapperManager;
 import fr.spse.gamepad_remapper.RemapperView;
@@ -52,9 +51,9 @@ import pojlib.util.Logger;
 import pojlib.util.download.DownloadManager;
 import pojlib.util.download.DownloadUtils;
 
-public class UnityPlayerActivity extends ActivityGroup implements IUnityPlayerLifecycleEvents, GrabListener
+public class UnityPlayerActivity extends ActivityGroup implements IUnityPlayerLifecycleEvents, IUnityPermissionRequestSupport, IUnityPlayerSupport, GrabListener
 {
-    protected UnityPlayer mUnityPlayer; // don't change the name of this variable; referenced from native code
+    protected UnityPlayerForActivityOrService mUnityPlayer; // don't change the name of this variable; referenced from native code
     public static volatile ClipboardManager GLOBAL_CLIPBOARD;
     private Gamepad mGamepad = null;
 
@@ -93,10 +92,10 @@ public class UnityPlayerActivity extends ActivityGroup implements IUnityPlayerLi
         String cmdLine = updateUnityCommandLineArguments(getIntent().getStringExtra("unity"));
         getIntent().putExtra("unity", cmdLine);
 
-        mUnityPlayer = new UnityPlayer(this, this);
-        setContentView(mUnityPlayer);
+        mUnityPlayer = new UnityPlayerForActivityOrService(this, this);
+        setContentView(mUnityPlayer.getFrameLayout());
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        mUnityPlayer.requestFocus();
+        mUnityPlayer.getFrameLayout().requestFocus();
 
         updateWindowSize(this);
         GLOBAL_CLIPBOARD = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
@@ -123,15 +122,10 @@ public class UnityPlayerActivity extends ActivityGroup implements IUnityPlayerLi
     public static String installLWJGL(Activity activity) throws IOException {
         Logger.getInstance().appendToLog("Checking LWJGL");
         File lwjgl = new File(Constants.USER_HOME + "/lwjgl3/lwjgl-glfw-classes.jar");
-        byte[] lwjglAsset = FileUtil.loadFromAssetToByte(activity, "lwjgl/lwjgl-glfw-classes.jar");
+        String lwjglAsset = "lwjgl/lwjgl-glfw-classes.jar";
 
-        if (!lwjgl.exists()) {
-            Objects.requireNonNull(lwjgl.getParentFile()).mkdirs();
-            FileUtil.write(lwjgl.getAbsolutePath(), lwjglAsset);
-        } else if (!FileUtil.matchingAssetFile(lwjgl, lwjglAsset)) {
-            lwjgl.delete();
-            Objects.requireNonNull(lwjgl.getParentFile()).mkdirs();
-            FileUtil.write(lwjgl.getAbsolutePath(), lwjglAsset);
+        if (!FileUtil.matchingAssetFile(activity, lwjglAsset, lwjgl)) {
+            FileUtil.copyAssetToFile(activity, lwjglAsset, lwjgl);
         }
 
         Logger.getInstance().appendToLog("LWJGL installed");
@@ -346,7 +340,7 @@ public class UnityPlayerActivity extends ActivityGroup implements IUnityPlayerLi
 
     @Override
     public void onGrabState(boolean isGrabbing) {
-        mUnityPlayer.post(()->updateGrabState(isGrabbing));
+        mUnityPlayer.getFrameLayout().post(()->updateGrabState(isGrabbing));
     }
 
     // private TouchEventProcessor pickEventProcessor(boolean isGrabbing) {
@@ -375,6 +369,11 @@ public class UnityPlayerActivity extends ActivityGroup implements IUnityPlayerLi
     @Override public void onUnityPlayerQuitted() {
     }
 
+    @Override
+    public UnityPlayerForActivityOrService getUnityPlayerConnection() {
+        return mUnityPlayer;
+    }
+
     @Override protected void onNewIntent(Intent intent)
     {
         // To support deep linking, we need to make sure that the client can get access to
@@ -400,14 +399,14 @@ public class UnityPlayerActivity extends ActivityGroup implements IUnityPlayerLi
     {
         super.onStop();
 
-        mUnityPlayer.pause();
+        mUnityPlayer.onStop();
     }
 
     @Override protected void onStart()
     {
         super.onStart();
 
-        mUnityPlayer.resume();
+        mUnityPlayer.onStart();
     }
 
     // Pause Unity
@@ -415,7 +414,7 @@ public class UnityPlayerActivity extends ActivityGroup implements IUnityPlayerLi
     {
         super.onPause();
 
-        mUnityPlayer.pause();
+        mUnityPlayer.onPause();
     }
 
     // Resume Unity
@@ -423,23 +422,30 @@ public class UnityPlayerActivity extends ActivityGroup implements IUnityPlayerLi
     {
         super.onResume();
 
-        mUnityPlayer.resume();
+        mUnityPlayer.onResume();
     }
 
     // Low Memory Unity
     @Override public void onLowMemory()
     {
         super.onLowMemory();
-        mUnityPlayer.lowMemory();
+        mUnityPlayer.onTrimMemory(UnityPlayerForActivityOrService.MemoryUsage.Critical);
     }
 
     // Trim Memory Unity
     @Override public void onTrimMemory(int level)
     {
         super.onTrimMemory(level);
-        if (level == TRIM_MEMORY_RUNNING_CRITICAL)
-        {
-            mUnityPlayer.lowMemory();
+        switch (level) {
+            case TRIM_MEMORY_RUNNING_MODERATE:
+                mUnityPlayer.onTrimMemory(UnityPlayerForActivityOrService.MemoryUsage.Medium);
+                break;
+            case TRIM_MEMORY_RUNNING_LOW:
+                mUnityPlayer.onTrimMemory(UnityPlayerForActivityOrService.MemoryUsage.High);
+                break;
+            case TRIM_MEMORY_RUNNING_CRITICAL:
+                mUnityPlayer.onTrimMemory(UnityPlayerForActivityOrService.MemoryUsage.Critical);
+                break;
         }
     }
 
@@ -466,13 +472,24 @@ public class UnityPlayerActivity extends ActivityGroup implements IUnityPlayerLi
         return super.dispatchKeyEvent(event);
     }*/
 
+    @Override
+    public void requestPermissions(PermissionRequest request) {
+        mUnityPlayer.addPermissionRequest(request);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        mUnityPlayer.permissionResponse(this, requestCode, permissions, grantResults);
+    }
+
     // Pass any events not handled by (unfocused) views straight to UnityPlayer
     @Override public boolean onKeyUp(int keyCode, KeyEvent event)     {
-        return mUnityPlayer.injectEvent(event);
+        return mUnityPlayer.getFrameLayout().onKeyUp(keyCode, event);
     }
     @Override public boolean onKeyDown(int keyCode, KeyEvent event)   {
-        return mUnityPlayer.injectEvent(event);
+        return mUnityPlayer.getFrameLayout().onKeyDown(keyCode, event);
     }
-    @Override public boolean onTouchEvent(MotionEvent event)          { return mUnityPlayer.injectEvent(event); }
-    /*API12*/ public boolean onGenericMotionEvent(MotionEvent event)  { return mUnityPlayer.injectEvent(event); }
+    @Override public boolean onTouchEvent(MotionEvent event)          { return mUnityPlayer.getFrameLayout().onTouchEvent(event); }
+    public boolean onGenericMotionEvent(MotionEvent event)  { return mUnityPlayer.getFrameLayout().onGenericMotionEvent(event); }
 }

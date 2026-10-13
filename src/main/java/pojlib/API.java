@@ -13,6 +13,8 @@ import org.lwjgl.glfw.CallbackBridge;
 
 import pojlib.account.MinecraftAccount;
 import pojlib.util.JREUtils;
+import pojlib.util.GsonUtils;
+import pojlib.install.Installer;
 import pojlib.util.Logger;
 import pojlib.util.download.DownloadManager;
 import pojlib.util.json.MinecraftInstances;
@@ -40,7 +42,7 @@ public class API {
     public static String profileImage;
     public static String profileName;
     public static String profileUUID;
-    public static String memoryValue = "1800";
+    public static String memoryValue = "2560";
     public static boolean developerMods;
     public static MinecraftAccount currentAcc;
     public static boolean isDemoMode;
@@ -48,6 +50,7 @@ public class API {
     private static boolean hasWifi;
     public static boolean advancedDebugger;
     public static boolean gameReady = false;
+    public static boolean launcherXRStopped = false;
 
 
     /**
@@ -98,7 +101,7 @@ public class API {
     }
 
     public static String[] getQCSupportedVersions(Activity ctx) {
-        return APIHandler.getQCSupportedVersions(ctx);
+        return new String[] {"1.20.1"};
     }
 
     /**
@@ -172,21 +175,29 @@ public class API {
      *
      * @param instance The instance to update
      */
-    public static void prelaunch(Activity activity, MinecraftInstances instances, MinecraftInstances.Instance instance) {
+    public static boolean prelaunch(Activity activity, MinecraftInstances instances, MinecraftInstances.Instance instance) {
         gameReady = false;
+        launcherXRStopped = false;
         instance.updateMods(instances);
+        try {
+            Installer.installVisor(activity, instance);
+            GsonUtils.objectToJsonFile(Constants.USER_HOME + "/instances.json", instances);
+        } catch (IOException exception) {
+            Logger.getInstance().appendToLog("Failed to install Visor: " + exception);
+            return false;
+        }
         if (hasConnection(activity)) {
             try {
                 JREUtils.prelaunchCheck(activity, instance);
             } catch (IOException | ExecutionException | InterruptedException e) {
                 Logger.getInstance().appendToLog("WARN! Instance launch failed!" + e);
+                return false;
             }
         } else {
             Logger.getInstance().appendToLog("Skipping prelaunch check due to no wifi connection!");
         }
         DownloadManager.reset();
-
-        MinecraftInstances.CheckVivecraftConfig(instance);
+        return true;
     }
 
     /**
