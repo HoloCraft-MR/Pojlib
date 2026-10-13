@@ -309,6 +309,7 @@ public class JREUtils {
                 "-Dos.name=Linux",
                 "-Dos.version=Android-" + Build.VERSION.RELEASE,
                 "-Dorg.lwjgl.librarypath=" + ctx.getApplicationInfo().nativeLibraryDir,
+                "-Dorg.lwjgl.openxr.libname=" + ctx.getApplicationInfo().nativeLibraryDir + "/libopenxr_loader.so",
                 "-Djna.boot.library.path=" + ctx.getApplicationInfo().nativeLibraryDir,
                 "-Djna.nosys=true",
                 "-Djava.library.path=" + ctx.getApplicationInfo().nativeLibraryDir,
