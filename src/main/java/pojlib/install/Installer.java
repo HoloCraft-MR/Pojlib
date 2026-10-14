@@ -279,6 +279,7 @@ public class Installer {
                 if (name.contains("vivecraft")
                         || name.equals("visor.jar")
                         || name.equals("visoressentials.jar")
+                        || name.startsWith("holocraftmr")
                         || name.contains("moreculling")
                         || name.contains("noisium")
                         || name.contains("badoptimizations")
@@ -297,6 +298,10 @@ public class Installer {
         FileUtils.writeByteArrayToFile(
                 new File(mods, "VisorEssentials.jar"),
                 FileUtil.loadFromAssetToByte(activity, "mods/VisorEssentials.jar")
+        );
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "HoloCraftMR.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/HoloCraftMR.jar")
         );
         FileUtils.writeByteArrayToFile(
                 new File(mods, "MoreCulling.jar"),
