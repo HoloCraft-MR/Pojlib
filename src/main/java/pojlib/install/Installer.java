@@ -279,11 +279,13 @@ public class Installer {
                 if (name.contains("vivecraft")
                         || name.equals("visor.jar")
                         || name.equals("visoressentials.jar")
+                        || name.startsWith("holocraftmr")
                         || name.contains("moreculling")
                         || name.contains("noisium")
                         || name.contains("badoptimizations")
                         || name.contains("chunky")
                         || name.contains("c2me")
+                        || name.contains("voicechat")
                         || name.contains("voxy")) {
                     file.delete();
                 }
@@ -297,6 +299,10 @@ public class Installer {
         FileUtils.writeByteArrayToFile(
                 new File(mods, "VisorEssentials.jar"),
                 FileUtil.loadFromAssetToByte(activity, "mods/VisorEssentials.jar")
+        );
+        FileUtils.writeByteArrayToFile(
+                new File(mods, "HoloCraftMR.jar"),
+                FileUtil.loadFromAssetToByte(activity, "mods/HoloCraftMR.jar")
         );
         FileUtils.writeByteArrayToFile(
                 new File(mods, "MoreCulling.jar"),
@@ -314,10 +320,6 @@ public class Installer {
                 new File(mods, "Chunky.jar"),
                 FileUtil.loadFromAssetToByte(activity, "mods/Chunky.jar")
         );
-        FileUtils.writeByteArrayToFile(
-                new File(mods, "C2ME.jar"),
-                FileUtil.loadFromAssetToByte(activity, "mods/C2ME.jar")
-        );
         ArrayList<ProjectInfo> projects = new ArrayList<>();
         if (instance.extProjects != null) {
             projects.addAll(Arrays.asList(instance.extProjects));
@@ -330,6 +332,7 @@ public class Installer {
                 || project.slug.equalsIgnoreCase("BadOptimizations")
                 || project.slug.equalsIgnoreCase("Chunky")
                 || project.slug.equalsIgnoreCase("C2ME")
+                || project.slug.equalsIgnoreCase("Simple-Voice-Chat")
                 || project.slug.equalsIgnoreCase("Voxy"));
 
         ProjectInfo visor = new ProjectInfo();
@@ -371,13 +374,6 @@ public class Installer {
         chunky.download_link = "bundled://chunky";
         chunky.type = "mod";
         projects.add(chunky);
-
-        ProjectInfo c2me = new ProjectInfo();
-        c2me.slug = "C2ME";
-        c2me.version = "0.2.0+alpha.11.18+1.20.1";
-        c2me.download_link = "bundled://c2me";
-        c2me.type = "mod";
-        projects.add(c2me);
 
         instance.extProjects = projects.toArray(new ProjectInfo[0]);
     }
