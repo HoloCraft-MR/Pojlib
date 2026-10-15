@@ -300,10 +300,10 @@ public class Installer {
                 new File(mods, "VisorEssentials.jar"),
                 FileUtil.loadFromAssetToByte(activity, "mods/VisorEssentials.jar")
         );
-        FileUtils.writeByteArrayToFile(
-                new File(mods, "HoloCraftMR.jar"),
-                FileUtil.loadFromAssetToByte(activity, "mods/HoloCraftMR.jar")
-        );
+        byte[] addon = FileUtil.loadFromAssetToByte(activity, "mods/HoloCraftMR.jar");
+        if (addon != null) {
+            FileUtils.writeByteArrayToFile(new File(mods, "HoloCraftMR.jar"), addon);
+        }
         FileUtils.writeByteArrayToFile(
                 new File(mods, "MoreCulling.jar"),
                 FileUtil.loadFromAssetToByte(activity, "mods/MoreCulling.jar")
